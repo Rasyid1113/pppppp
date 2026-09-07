@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jurnal Keanekaragaman Hayati</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #ece6d6;
+    --paper-deep: #ded4b8;
+    --paper-card: #f4efe1;
+    --ink: #1e2a1f;
+    --ink-soft: #4a5548;
+    --forest: #2f5233;
+    --forest-deep: #1c2e1e;
+    --ochre: #b8862b;
+    --rust: #a6552c;
+    --plum: #6b4a6b;
+    --line: rgba(30,42,31,0.18);
+    --shadow: 0 8px 24px rgba(28,46,30,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,.serif{
+    font-family:'Newsreader', serif;
+    font-weight:600;
+    color:var(--forest-deep);
+    margin:0;
+  }
+  button{font-family:inherit;}
+  .app{
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--forest-deep);
+    color:var(--paper);
+    padding:28px clamp(16px,4vw,48px) 22px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:20px;
+    border-bottom:3px solid var(--ochre);
+  }
+  .brand h1{
+    color:var(--paper);
+    font-size:clamp(24px,3.2vw,34px);
+    letter-spacing:0.2px;
+  }
+  .brand p{
+    margin:6px 0 0;
+    color:#cdd6c8;
+    font-size:14.5px;
+    max-width:520px;
+    line-height:1.5;
+  }
+  .tally{
+    display:flex;
+    gap:22px;
+    align-items:center;
+  }
+  .tally-item{
+    text-align:left;
+    padding-right:22px;
+    border-right:1px solid rgba(236,230,214,0.25);
+  }
+  .tally-item:last-child{border-right:none;padding-right:0;}
+  .tally-num{
+    font-family:'Newsreader', serif;
+    font-size:26px;
+    font-weight:600;
+    color:var(--paper);
+    line-height:1;
+  }
+  .tally-label{
+    font-size:12px;
+    color:#b7c2b0;
+    margin-top:3px;
+  }
+  .btn-record{
+    background:var(--ochre);
+    color:var(--forest-deep);
+    border:none;
+    padding:12px 20px;
+    border-radius:3px;
+    font-weight:600;
+    font-size:14.5px;
+    cursor:pointer;
+    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+    transition:transform .15s ease, box-shadow .15s ease;
+    white-space:nowrap;
+  }
+  .btn-record:hover{transform:translateY(-1px); box-shadow:0 6px 14px rgba(0,0,0,0.3);}
+
+  /* ---------- controls row ---------- */
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    padding:16px clamp(16px,4vw,48px);
+    background:var(--paper-deep);
+    border-bottom:1px solid var(--line);
+  }
+  .chip{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:7px 15px;
+    border-radius:20px;
+    font-size:13.5px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .chip.active{
+    background:var(--forest);
+    border-color:var(--forest);
+    color:var(--paper);
+  }
+  .search{
+    margin-left:auto;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:7px 14px;
+    font-size:13.5px;
+    color:var(--ink);
+    width:200px;
+  }
+  .search:focus{outline:2px solid var(--forest); outline-offset:1px;}
+
+  /* ---------- main layout ---------- */
+  .main{
+    flex:1;
+    display:flex;
+    gap:0;
+    min-height:0;
+  }
+  .sidebar{
+    width:360px;
+    min-width:280px;
+    max-width:38vw;
+    overflow-y:auto;
+    padding:16px;
+    border-right:1px solid var(--line);
+    background:var(--paper);
+  }
+  .map-wrap{
+    flex:1;
+    position:relative;
+  }
+  #map{
+    position:absolute;
+    inset:0;
+  }
+
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ink-soft);
+  }
+  .empty-state .glyph{font-size:34px; margin-bottom:10px;}
+  .empty-state p{font-size:14px; line-height:1.6; max-width:260px; margin:8px auto 0;}
+
+  .card{
+    background:var(--paper-card);
+    border-radius:4px;
+    margin-bottom:12px;
+    padding:12px;
+    display:flex;
+    gap:12px;
+    cursor:pointer;
+    border-left:4px solid var(--forest);
+    box-shadow:0 1px 3px rgba(28,46,30,0.08);
+    transition:box-shadow .15s ease, transform .15s ease;
+  }
+  .card:hover{box-shadow:var(--shadow); transform:translateY(-1px);}
+  .card.selected{outline:2px solid var(--ochre);}
+  .card img{
+    width:64px; height:64px; object-fit:cover; border-radius:3px; flex-shrink:0;
+    background:var(--paper-deep);
+  }
+  .card-body{min-width:0; flex:1;}
+  .card-body h3{
+    font-size:16px;
+    color:var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .card-meta{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .card-notes{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:5px;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    line-height:1.4;
+  }
+  .cat-tag{
+    display:inline-block;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:10px;
+    color:#fff;
+    margin-right:6px;
+  }
+  .card-actions{
+    display:flex; justify-content:flex-end; margin-top:6px;
+  }
+  .del-btn{
+    background:none; border:none; color:var(--rust); font-size:11.5px; cursor:pointer; padding:2px 4px;
+  }
+  .del-btn:hover{text-decoration:underline;}
+
+  /* ---------- leaflet tweaks ---------- */
+  .leaflet-popup-content-wrapper{
+    background:var(--paper-card);
+    border-radius:4px;
+    box-shadow:var(--shadow);
+  }
+  .leaflet-popup-content{margin:10px 12px; font-family:'Work Sans',sans-serif;}
+  .popup-photo{width:100%; max-width:200px; border-radius:3px; display:block; margin-bottom:6px;}
+  .popup-title{font-family:'Newsreader',serif; font-size:16px; font-weight:600; color:var(--forest-deep);}
+  .popup-meta{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .marker-pin{
+    width:26px; height:26px; border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    border:2px solid #fff;
+    box-shadow:0 2px 5px rgba(0,0,0,0.35);
+  }
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(17,24,17,0.55);
+    display:none; align-items:center; justify-content:center;
+    z-index:1000; padding:20px;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--paper);
+    width:100%; max-width:520px; max-height:88vh; overflow-y:auto;
+    border-radius:6px;
+    padding:26px 26px 22px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  }
+  .modal h2{font-size:22px; margin-bottom:4px;}
+  .modal .sub{font-size:13px; color:var(--ink-soft); margin-bottom:18px;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px;
+  }
+  .field input[type=text], .field textarea, .field input[type=date]{
+    width:100%; border:none; border-bottom:1.5px solid var(--line);
+    background:transparent; padding:8px 2px; font-size:14.5px; color:var(--ink);
+    font-family:inherit;
+  }
+  .field input:focus, .field textarea:focus{outline:none; border-color:var(--forest);}
+  .field textarea{resize:vertical; min-height:60px;}
+  .cat-select{display:flex; gap:8px;}
+  .cat-btn{
+    flex:1; padding:9px 6px; border-radius:4px; border:1.5px solid var(--line);
+    background:var(--paper-card); font-size:13px; cursor:pointer; color:var(--ink-soft);
+  }
+  .cat-btn.active{color:#fff; border-color:transparent;}
+  .dropzone{
+    border:2px dashed var(--forest);
+    border-radius:6px;
+    padding:22px 12px;
+    text-align:center;
+    cursor:pointer;
+    background:var(--paper-card);
+    color:var(--ink-soft);
+    font-size:13.5px;
+  }
+  .dropzone:hover{background:var(--paper-deep);}
+  .preview-wrap{position:relative; display:inline-block;}
+  .preview-wrap img{max-width:100%; max-height:180px; border-radius:5px; display:block; margin:0 auto;}
+  .loc-status{
+    font-size:12.5px; padding:8px 10px; border-radius:4px; margin-top:8px;
+    background:var(--paper-card);
+    color:var(--ink-soft);
+  }
+  .loc-status.found{color:var(--forest-deep); background:#e2ead9;}
+  #modal-map{
+    height:180px; border-radius:6px; margin-top:8px; display:none;
+  }
+  .geo-btn{
+    font-size:12px; color:var(--forest); background:none; border:none; text-decoration:underline; cursor:pointer; padding:0; margin-top:6px;
+  }
+  .modal-actions{
+    display:flex; justify-content:flex-end; gap:10px; margin-top:20px;
+  }
+  .btn-secondary{
+    background:transparent; border:1.5px solid var(--line); color:var(--ink-soft);
+    padding:10px 16px; border-radius:4px; cursor:pointer; font-size:13.5px;
+  }
+  .btn-primary{
+    background:var(--forest); border:none; color:#fff;
+    padding:10px 18px; border-radius:4px; cursor:pointer; font-size:13.5px; font-weight:600;
+  }
+  .btn-primary:disabled{opacity:0.45; cursor:not-allowed;}
+  .close-x{
+    position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; color:var(--ink-soft); cursor:pointer;
+  }
+  .notice{
+    font-size:12px; color:var(--ink-soft); background:var(--paper-deep);
+    padding:9px 12px; border-radius:4px; margin-bottom:16px; line-height:1.5;
+  }
+
+  @media (max-width:760px){
+    .main{flex-direction:column;}
+    .sidebar{width:100%; max-width:100%; max-height:42vh; border-right:none; border-bottom:1px solid var(--line);}
+    .map-wrap{min-height:46vh;}
+    .tally{gap:14px;}
+    .tally-item{padding-right:14px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <h1>Jurnal Keanekaragaman Hayati</h1>
+      <p>Catat setiap perjumpaan dengan flora, fauna, dan fungi &mdash; lengkap dengan lokasi tempat fotonya diambil.</p>
+    </div>
+    <div class="tally" id="tally"></div>
+    <button class="btn-record" id="openModalBtn">+ Catat Observasi</button>
+  </header>
+
+  <div class="controls">
+    <button class="chip active" data-filter="all">Semua</button>
+    <button class="chip" data-filter="flora">Flora</button>
+    <button class="chip" data-filter="fauna">Fauna</button>
+    <button class="chip" data-filter="fungi">Fungi &amp; Lumut</button>
+    <input class="search" id="searchInput" type="text" placeholder="Cari nama spesies...">
+  </div>
+
+  <div class="main">
+    <div class="sidebar" id="sidebar">
+      <div class="empty-state" id="emptyState">
+        <div class="glyph">&#127807;</div>
+        <p>Belum ada observasi. Jadilah yang pertama mendokumentasikan keanekaragaman hayati di sekitarmu.</p>
+      </div>
+    </div>
+    <div class="map-wrap">
+      <div id="map"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="close-x" id="closeModalBtn">&times;</button>
+    <h2>Catat Observasi Baru</h2>
+    <div class="sub">Unggah foto, lengkapi detail spesiesnya, lalu pastikan lokasinya benar.</div>
+
+    <div class="notice">Data yang kamu simpan di sini bersifat bersama (shared) &mdash; observasi ini akan terlihat oleh semua orang yang membuka jurnal ini.</div>
+
+    <div class="field">
+      <label>Foto</label>
+      <div id="dropzone" class="dropzone">Klik untuk pilih foto, atau seret ke sini</div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none;">
+      <div id="previewWrap" style="display:none; margin-top:10px;" class="preview-wrap">
+        <img id="previewImg">
+      </div>
+      <div class="loc-status" id="locStatus">Belum ada foto diunggah.</div>
+      <div id="modal-map"></div>
+      <button class="geo-btn" id="useGeoBtn" style="display:none;">Gunakan lokasi saya sekarang</button>
+    </div>
+
+    <div class="field">
+      <label>Kategori</label>
+      <div class="cat-select" id="catSelect">
+        <button type="button" class="cat-btn" data-cat="flora">Flora</button>
+        <button type="button" class="cat-btn" data-cat="fauna">Fauna</button>
+        <button type="button" class="cat-btn" data-cat="fungi">Fungi &amp; Lumut</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Nama spesies (atau perkiraan)</label>
+      <input type="text" id="speciesInput" placeholder="Contoh: Bekantan (Nasalis larvatus)">
+    </div>
+
+    <div class="field">
+      <label>Tanggal pengamatan</label>
+      <input type="date" id="dateInput">
+    </div>
+
+    <div class="field">
+      <label>Catatan (opsional)</label>
+      <textarea id="notesInput" placeholder="Perilaku, habitat, jumlah individu, kondisi cuaca, dll."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" id="cancelBtn">Batal</button>
+      <button class="btn-primary" id="saveBtn" disabled>Simpan Observasi</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
+<script>
+(function(){
+
+  var CAT = {
+    flora: {label:'Flora', color:'#2f5233'},
+    fauna: {label:'Fauna', color:'#a6552c'},
+    fungi: {label:'Fungi & Lumut', color:'#6b4a6b'}
+  };
+
+  var state = {
+    observations: [],
+    filter: 'all',
+    search: '',
+    selectedId: null,
+    loaded: false
+  };
+
+  var draft = { photo:null, lat:null, lng:null, category:null, foundBy:null };
+
+  var map, markersLayer, modalMap, modalMarker;
+
+  function $(id){ return document.getElementById(id); }
+
+  // ---------------- storage ----------------
+  async function loadObservations(){
+    var index = [];
+    try{
+      var r = await window.storage.get('obs-index', true);
+      if(r && r.value){ index = JSON.parse(r.value); }
+    }catch(e){ index = []; }
+
+    var obs = [];
+    for(var i=0;i<index.length;i++){
+      try{
+        var rec = await window.storage.get('obs:'+index[i], true);
+        if(rec && rec.value){ obs.push(JSON.parse(rec.value)); }
+      }catch(e){ /* skip missing */ }
+    }
+    obs.sort(function(a,b){ return b.createdAt - a.createdAt; });
+    state.observations = obs;
+    state.loaded = true;
+    renderAll();
+  }
+
+  async function saveObservation(obs){
+    await window.storage.set('obs:'+obs.id, JSON.stringify(obs), true);
+    var index = [];
+    try{
+      var r = await window.storage.get('obs-index', true);
+      if(r && r.value){ index = JSON.parse(r.value); }
+    }catch(e){ index = []; }
+    index.push(obs.id);
+    await window.storage.set('obs-index', JSON.stringify(index), true);
+  }
+
+  async function deleteObservation(id){
+    try{ await window.storage.delete('obs:'+id, true); }catch(e){}
+    var index = [];
+    try{
+      var r = await window.storage.get('obs-index', true);
+      if(r && r.value){ index = JSON.parse(r.value); }
+    }catch(e){ index = []; }
+    index = index.filter(function(x){ return x!==id; });
+    try{ await window.storage.set('obs-index', JSON.stringify(index), true); }catch(e){}
+    state.observations = state.observations.filter(function(o){ return o.id!==id; });
+    renderAll();
+  }
+
+  // ---------------- map ----------------
+  function initMap(){
+    map = L.map('map', {zoomControl:true}).setView([-2.5, 118], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+  }
+
+  function makeIcon(color){
+    return L.divIcon({
+      className:'',
+      html:'<div class="marker-pin" style="background:'+color+'"></div>',
+      iconSize:[26,26],
+      iconAnchor:[13,26],
+      popupAnchor:[0,-24]
+    });
+  }
+
+  function renderMarkers(list){
+    markersLayer.clearLayers();
+    var bounds = [];
+    list.forEach(function(o){
+      if(o.lat==null || o.lng==null) return;
+      var color = CAT[o.category] ? CAT[o.category].color : '#2f5233';
+      var marker = L.marker([o.lat, o.lng], {icon: makeIcon(color)});
+      var html = '';
+      if(o.photo){ html += '<img class="popup-photo" src="'+o.photo+'">'; }
+      html += '<div class="popup-title">'+escapeHtml(o.species)+'</div>';
+      html += '<div class="popup-meta">'+CAT[o.category].label+' &middot; '+o.date+'</div>';
+      if(o.notes){ html += '<div class="popup-meta" style="margin-top:5px;">'+escapeHtml(o.notes)+'</div>'; }
+      marker.bindPopup(html);
+      marker.on('click', function(){ selectObservation(o.id, false); });
+      marker.addTo(markersLayer);
+      marker._obsId = o.id;
+      bounds.push([o.lat, o.lng]);
+    });
+    return bounds;
+  }
+
+  function focusObservation(o){
+    if(o.lat==null || o.lng==null) return;
+    map.flyTo([o.lat,o.lng], Math.max(map.getZoom(), 12), {duration:0.6});
+    markersLayer.eachLayer(function(m){
+      if(m._obsId === o.id){ m.openPopup(); }
+    });
+  }
+
+  // ---------------- render ----------------
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function getFiltered(){
+    return state.observations.filter(function(o){
+      var passCat = state.filter==='all' || o.category===state.filter;
+      var passSearch = !state.search || (o.species||'').toLowerCase().indexOf(state.search.toLowerCase())>-1;
+      return passCat && passSearch;
+    });
+  }
+
+  function renderTally(){
+    var total = state.observations.length;
+    var species = new Set(state.observations.map(function(o){ return (o.species||'').trim().toLowerCase(); })).size;
+    var locs = new Set(state.observations.filter(function(o){return o.lat!=null;}).map(function(o){ return o.lat.toFixed(2)+','+o.lng.toFixed(2); })).size;
+    $('tally').innerHTML =
+      '<div class="tally-item"><div class="tally-num">'+total+'</div><div class="tally-label">observasi</div></div>'+
+      '<div class="tally-item"><div class="tally-num">'+species+'</div><div class="tally-label">spesies</div></div>'+
+      '<div class="tally-item"><div class="tally-num">'+locs+'</div><div class="tally-label">lokasi</div></div>';
+  }
+
+  function renderSidebar(list){
+    var sidebar = $('sidebar');
+    if(!state.loaded){
+      sidebar.innerHTML = '<div class="empty-state"><div class="glyph">&#8230;</div><p>Memuat data observasi...</p></div>';
+      return;
+    }
+    if(list.length===0){
+      var msg = state.observations.length===0
+        ? 'Belum ada observasi. Jadilah yang pertama mendokumentasikan keanekaragaman hayati di sekitarmu.'
+        : 'Tidak ada observasi yang cocok dengan filter atau pencarian ini.';
+      sidebar.innerHTML = '<div class="empty-state"><div class="glyph">&#127807;</div><p>'+msg+'</p></div>';
+      return;
+    }
+    sidebar.innerHTML = '';
+    list.forEach(function(o){
+      var card = document.createElement('div');
+      card.className = 'card' + (state.selectedId===o.id ? ' selected' : '');
+      var catInfo = CAT[o.category] || CAT.flora;
+      card.innerHTML =
+        (o.photo ? '<img src="'+o.photo+'">' : '<div style="width:64px;height:64px;border-radius:3px;background:var(--paper-deep);flex-shrink:0;"></div>') +
+        '<div class="card-body">'+
+          '<h3>'+escapeHtml(o.species)+'</h3>'+
+          '<div class="card-meta"><span class="cat-tag" style="background:'+catInfo.color+'">'+catInfo.label+'</span>'+o.date+'</div>'+
+          (o.notes ? '<div class="card-notes">'+escapeHtml(o.notes)+'</div>' : '') +
+          (o.lat!=null ? '<div class="card-meta">'+o.lat.toFixed(4)+', '+o.lng.toFixed(4)+'</div>' : '<div class="card-meta">Lokasi tidak tercatat</div>') +
+          '<div class="card-actions"><button class="del-btn" data-id="'+o.id+'">Hapus</button></div>'+
+        '</div>';
+      card.addEventListener('click', function(e){
+        if(e.target.classList.contains('del-btn')) return;
+        selectObservation(o.id, true);
+      });
+      sidebar.appendChild(card);
+    });
+    sidebar.querySelectorAll('.del-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(confirm('Hapus observasi ini?')){ deleteObservation(btn.dataset.id); }
+      });
+    });
+  }
+
+  function selectObservation(id, panMap){
+    state.selectedId = id;
+    var o = state.observations.find(function(x){ return x.id===id; });
+    renderSidebar(getFiltered());
+    if(o && panMap) focusObservation(o);
+  }
+
+  function renderAll(){
+    renderTally();
+    var list = getFiltered();
+    renderSidebar(list);
+    renderMarkers(list);
+  }
+
+  // ---------------- filters ----------------
+  document.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      state.filter = chip.dataset.filter;
+      renderAll();
+    });
+  });
+  $('searchInput').addEventListener('input', function(e){
+    state.search = e.target.value;
+    renderAll();
+  });
+
+  // ---------------- modal / add flow ----------------
+  var overlay = $('overlay');
+
+  function resetDraft(){
+    draft = { photo:null, lat:null, lng:null, category:null, foundBy:null };
+    $('previewWrap').style.display='none';
+    $('dropzone').style.display='block';
+    $('locStatus').className='loc-status';
+    $('locStatus').textContent='Belum ada foto diunggah.';
+    $('modal-map').style.display='none';
+    $('useGeoBtn').style.display='none';
+    $('speciesInput').value='';
+    $('notesInput').value='';
+    $('dateInput').value = new Date().toISOString().slice(0,10);
+    document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.remove('active'); b.style.background=''; b.style.color=''; });
+    updateSaveState();
+    if(modalMarker){ modalMap.removeLayer(modalMarker); modalMarker=null; }
+  }
+
+  function openModal(){
+    resetDraft();
+    overlay.classList.add('open');
+  }
+  function closeModal(){
+    overlay.classList.remove('open');
+  }
+  $('openModalBtn').addEventListener('click', openModal);
+  $('closeModalBtn').addEventListener('click', closeModal);
+  $('cancelBtn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeModal(); });
+
+  $('dropzone').addEventListener('click', function(){ $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(file) handleFile(file);
+  });
+
+  function handleFile(file){
+    $('locStatus').textContent = 'Membaca foto...';
+    $('locStatus').className = 'loc-status';
+
+    // EXIF GPS extraction
+    try{
+      EXIF.getData(file, function(){
+        var lat = EXIF.getTag(this, 'GPSLatitude');
+        var lon = EXIF.getTag(this, 'GPSLongitude');
+        var latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+        var lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+        if(lat && lon){
+          var latDec = dmsToDecimal(lat, latRef);
+          var lonDec = dmsToDecimal(lon, lonRef);
+          draft.lat = latDec; draft.lng = lonDec; draft.foundBy='exif';
+          showLocationFound('Lokasi ditemukan otomatis dari data EXIF foto.', latDec, lonDec);
+        } else {
+          showNoLocation();
+        }
+      });
+    }catch(err){
+      showNoLocation();
+    }
+
+    // resize + preview
+    resizeImage(file, 900, 0.72).then(function(dataUrl){
+      draft.photo = dataUrl;
+      $('previewImg').src = dataUrl;
+      $('previewWrap').style.display='block';
+      $('dropzone').style.display='none';
+      updateSaveState();
+    });
+  }
+
+  function dmsToDecimal(dms, ref){
+    var d = dms[0], m = dms[1], s = dms[2];
+    var dec = d + m/60 + s/3600;
+    if(ref === 'S' || ref === 'W') dec = -dec;
+    return dec;
+  }
+
+  function resizeImage(file, maxDim, quality){
+    return new Promise(function(resolve){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var img = new Image();
+        img.onload = function(){
+          var w = img.width, h = img.height;
+          if(w > h && w > maxDim){ h = Math.round(h*maxDim/w); w = maxDim; }
+          else if(h >= w && h > maxDim){ w = Math.round(w*maxDim/h); h = maxDim; }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function ensureModalMap(){
+    if(modalMap) return;
+    $('modal-map').style.display='block';
+    modalMap = L.map('modal-map', {zoomControl:false}).setView([-2.5,118], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:''}).addTo(modalMap);
+    modalMap.on('click', function(e){
+      setModalMarker(e.latlng.lat, e.latlng.lng);
+      draft.lat = e.latlng.lat; draft.lng = e.latlng.lng; draft.foundBy='manual';
+      showLocationFound('Lokasi dipilih manual di peta.', draft.lat, draft.lng, true);
+    });
+    setTimeout(function(){ modalMap.invalidateSize(); }, 200);
+  }
+
+  function setModalMarker(lat,lng){
+    if(modalMarker){ modalMarker.setLatLng([lat,lng]); }
+    else{
+      modalMarker = L.marker([lat,lng], {draggable:true}).addTo(modalMap);
+      modalMarker.on('dragend', function(){
+        var p = modalMarker.getLatLng();
+        draft.lat = p.lat; draft.lng = p.lng; draft.foundBy='manual';
+        showLocationFound('Lokasi disesuaikan manual di peta.', p.lat, p.lng, true);
+      });
+    }
+    modalMap.setView([lat,lng], 13);
+  }
+
+  function showLocationFound(msg, lat, lng, skipMapCenter){
+    $('locStatus').className = 'loc-status found';
+    $('locStatus').textContent = msg + ' ('+lat.toFixed(5)+', '+lng.toFixed(5)+')';
+    ensureModalMap();
+    if(!skipMapCenter) setModalMarker(lat,lng);
+    else if(!modalMarker) setModalMarker(lat,lng);
+    $('useGeoBtn').style.display='inline-block';
+    updateSaveState();
+  }
+
+  function showNoLocation(){
+    $('locStatus').className = 'loc-status';
+    $('locStatus').textContent = 'Lokasi tidak terdeteksi dari foto. Klik pada peta di bawah untuk menandai lokasinya, atau gunakan lokasi Anda sekarang.';
+    ensureModalMap();
+    $('useGeoBtn').style.display='inline-block';
+    updateSaveState();
+  }
+
+  $('useGeoBtn').addEventListener('click', function(){
+    if(!navigator.geolocation){ alert('Geolocation tidak didukung di perangkat ini.'); return; }
+    $('locStatus').textContent = 'Mengambil lokasi Anda...';
+    navigator.geolocation.getCurrentPosition(function(pos){
+      draft.lat = pos.coords.latitude; draft.lng = pos.coords.longitude; draft.foundBy='geo';
+      showLocationFound('Menggunakan lokasi Anda saat ini.', draft.lat, draft.lng);
+    }, function(){
+      $('locStatus').textContent = 'Gagal mengambil lokasi. Silakan klik pada peta secara manual.';
+    });
+  });
+
+  document.querySelectorAll('.cat-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.remove('active'); b.style.background=''; b.style.color=''; });
+      btn.classList.add('active');
+      btn.style.background = CAT[btn.dataset.cat].color;
+      draft.category = btn.dataset.cat;
+      updateSaveState();
+    });
+  });
+
+  $('speciesInput').addEventListener('input', updateSaveState);
+
+  function updateSaveState(){
+    var ok = draft.photo && draft.category && $('speciesInput').value.trim().length>0;
+    $('saveBtn').disabled = !ok;
+  }
+
+  $('saveBtn').addEventListener('click', async function(){
+    var obs = {
+      id: 'obs_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+      species: $('speciesInput').value.trim(),
+      category: draft.category,
+      notes: $('notesInput').value.trim(),
+      date: $('dateInput').value || new Date().toISOString().slice(0,10),
+      lat: draft.lat, lng: draft.lng,
+      photo: draft.photo,
+      createdAt: Date.now()
+    };
+    $('saveBtn').disabled = true;
+    $('saveBtn').textContent = 'Menyimpan...';
+    try{
+      await saveObservation(obs);
+      state.observations.unshift(obs);
+      closeModal();
+      renderAll();
+      if(obs.lat!=null){ focusObservation(obs); }
+    }catch(e){
+      alert('Gagal menyimpan observasi. Coba lagi.');
+    }
+    $('saveBtn').textContent = 'Simpan Observasi';
+    updateSaveState();
+  });
+
+  // ---------------- init ----------------
+  $('dateInput') && ($('dateInput').value = new Date().toISOString().slice(0,10));
+  initMap();
+  loadObservations();
+
+})();
+</script>
+</body>
+</html>
